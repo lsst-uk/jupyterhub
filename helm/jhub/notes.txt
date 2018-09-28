@@ -1,0 +1,3 @@
+Initial Helm setup: https://zero-to-jupyterhub.readthedocs.io/en/latest/setup-helm.html
+Installing JupyterHub: https://zero-to-jupyterhub.readthedocs.io/en/latest/setup-jupyterhub.html
+

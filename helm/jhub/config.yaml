@@ -1,0 +1,22 @@
+proxy:
+  secretToken: "8fcb4ad5a842c1eb2fca8c97d0dcc3ca59b7720ca1e1ad10a4717c532c2ffc4f"
+  service:
+    # Set type to NodePort to avoid trying to create a loadbalancer
+    type: "NodePort"
+auth:
+  type: ldap
+  ldap:
+    server:
+      address: authorise.is.ed.ac.uk
+      ssl: true
+    dn:
+      templates:
+        - 'uid={username},ou=people,ou=central,dc=authorise,dc=ed,dc=ac,dc=uk'
+# If we're using a separate db instead of a persistent volume + sqlite then we want something like this
+#hub:
+#  db:
+#    type: "postgres"
+#    url: "postgres+psycopg2://jhub:2jguehzj6b@192.168.1.12:5432/jhub"
+debug:
+  enabled: true
+
