@@ -1,0 +1,90 @@
+# configuration for "test2" cluster created using GUI
+
+addon_job_timeout: 30
+authentication: 
+  strategy: "x509"
+bastion_host: 
+  ssh_agent_auth: false
+cloud_provider: 
+  name: "openstack"
+  openstackCloudProvider: 
+    block_storage: 
+      ignore-volume-az: true
+      trust-device-path: false
+    global: 
+      auth-url: "https://keystone.ecdf.ed.ac.uk/v3/"
+      domain-name: "ed"
+      password: "Ekbr5ng4Tm"
+      tenant-id: "86e1a933179846dab688415660ab6cfa"
+      username: "lsstuk"
+    load_balancer: 
+      create-monitor: false
+      manage-security-groups: false
+      monitor-delay: 0
+      monitor-max-retries: 0
+      monitor-timeout: 0
+      use-octavia: false
+    metadata: 
+      request-timeout: 0
+ignore_docker_version: true
+# 
+#   # Currently only nginx ingress provider is supported.
+#   # To disable ingress controller, set `provider: none`
+#   # To enable ingress on specific nodes, use the node_selector, eg:
+#      provider: nginx
+#      node_selector:
+#        app: ingress
+# 
+ingress: 
+  provider: "nginx"
+kubernetes_version: "v1.11.2-rancher1-1"
+monitoring: 
+  provider: "metrics-server"
+# 
+#   # If you are using calico on AWS
+# 
+#      network:
+#        plugin: calico
+#        calico_network_provider:
+#          cloud_provider: aws
+# 
+#   # To specify flannel interface
+# 
+#      network:
+#        plugin: flannel
+#        flannel_network_provider:
+#          iface: eth1
+# 
+#   # To specify flannel interface for canal plugin
+# 
+#      network:
+#        plugin: canal
+#        canal_network_provider:
+#          iface: eth1
+# 
+network: 
+  plugin: "canal"
+# 
+#      services:
+#        kube_api:
+#          service_cluster_ip_range: 10.43.0.0/16
+#        kube_controller:
+#          cluster_cidr: 10.42.0.0/16
+#          service_cluster_ip_range: 10.43.0.0/16
+#        kubelet:
+#          cluster_domain: cluster.local
+#          cluster_dns_server: 10.43.0.10
+# 
+services: 
+  etcd: 
+    extra_args: 
+      election-timeout: "5000"
+      heartbeat-interval: "500"
+    snapshot: false
+  kube-api: 
+    pod_security_policy: false
+  kubelet: 
+    fail_swap_on: false
+ssh_agent_auth: false
+
+
