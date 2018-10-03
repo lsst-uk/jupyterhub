@@ -12,11 +12,38 @@ auth:
     dn:
       templates:
         - 'uid={username},ou=people,ou=central,dc=authorise,dc=ed,dc=ac,dc=uk'
+debug:
+  enabled: true
+hub:
 # If we're using a separate db instead of a persistent volume + sqlite then we want something like this
-#hub:
 #  db:
 #    type: "postgres"
 #    url: "postgres+psycopg2://jhub:2jguehzj6b@192.168.1.12:5432/jhub"
-debug:
-  enabled: true
+#
+# This allows the user to select the image to use from a list
+  extraConfig: |
+    from kubespawner.spawner import KubeSpawner
+    from traitlets import observe
+    class MySpawner(KubeSpawner):
+      @observe('user_options')
+      def _update_options(self, change):
+        options = change.new
+        if 'image' in options:
+          self.singleuser_image_spec = options['image']
+      def options_from_form(self, formdata):
+        images = {
+          0: "jupyter/base-notebook",
+          1: "jupyter/datascience-notebook",
+        }
+        options = {}
+        img = 0
+        try:
+          img = int(formdata.get('image', [''])[0])
+        except ValueError:
+          pass
+        options['image'] = images.get(img, images[0])
+        return options
+    c.JupyterHub.spawner_class = MySpawner
+    c.Spawner.options_form = '<label for="image">Image</label>&nbsp;&nbsp;<select name="image"><option value="0">Standard Notebook</option><option value="1">Data Science Notebook</option></input>'
+
 
