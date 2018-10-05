@@ -33,7 +33,7 @@ hub:
         images = {
           0: "jupyter/base-notebook",
           1: "jupyter/datascience-notebook",
-          2: "192.168.1.11:5000/ztf-notebook",
+          2: "192.168.1.11:5000/ztf-notebook:0.0.3",
         }
         options = {}
         img = 0
