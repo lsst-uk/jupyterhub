@@ -6,11 +6,6 @@ proxy:
     nodePorts:
       http: 30080
       https: 30443
-  https:
-    hosts:
-      - jhub-test.metagrid.xyz
-    letsencrypt:
-      contactEmail: g.francis@epcc.ed.ac.uk
 auth:
   type: ldap
   ldap:
