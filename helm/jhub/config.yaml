@@ -3,6 +3,11 @@ proxy:
   service:
     # Set type to NodePort to avoid trying to create a loadbalancer
     type: "NodePort"
+  https:
+    hosts:
+      - jhub-test.metagrid.xyz
+    letsencrypt:
+      contactEmail: g.francis@epcc.ed.ac.uk
 auth:
   type: ldap
   ldap:
