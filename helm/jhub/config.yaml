@@ -43,19 +43,39 @@ hub:
         options = change.new
         if 'image' in options:
           self.singleuser_image_spec = options['image']
+        if 'mem' in options:
+          self.mem_guarantee = options['mem']
+          self.mem_limit = options['mem']
+        if 'cpu' in options:
+          self.cpu_guarantee = options['cpu']
+          self.cpu_limit = options['cpu']
       def options_from_form(self, formdata):
         images = {
           0: "jupyter/base-notebook",
           1: "jupyter/datascience-notebook",
           2: "192.168.140.29:5000/ztf-notebook:0.0.3",
         }
+        mems = {
+          0: "256M",
+          1: "1G"
+        }
+        cpus = {
+          0: "0.5",
+          1: "1"
         options = {}
         img = 0
+        size = 0
         try:
           img = int(formdata.get('image', [''])[0])
         except ValueError:
           pass
         options['image'] = images.get(img, images[0])
+        try:
+          size = int(formdata.get('size', [''])[0])
+        except ValueError:
+          pass
+        options['mem'] = mems.get(size, mems[0])
+        options['cpu'] = cpus.get(size, cpus[0])
         return options
     c.JupyterHub.spawner_class = MySpawner
     c.Spawner.options_form = """<label for='image'>Image</label>&nbsp;&nbsp;
@@ -63,5 +83,10 @@ hub:
         <option value='0'>Standard Notebook</option>
         <option value='1'>Data Science Notebook</option>
         <option value='2'>ZTF Notebook</option>
+      </select>&nbsp;&nbsp;&nbsp;
+      <label for='size'>Size</label>&nbsp;&nbsp;
+            <select name='image'>
+        <option value='0'>Tiny (256M / 0.5 CPU)</option>
+        <option value='1'>Small (512M / 1 CPU)</option>
       </select>"""
 
