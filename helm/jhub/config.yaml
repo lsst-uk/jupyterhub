@@ -86,7 +86,7 @@ hub:
         <option value='2'>ZTF Notebook</option>
       </select>&nbsp;&nbsp;&nbsp;
       <label for='size'>Size</label>&nbsp;&nbsp;
-            <select name='image'>
+      <select name='size'>
         <option value='0'>Tiny (256M / 0.5 CPU)</option>
         <option value='1'>Small (512M / 1 CPU)</option>
       </select>"""
