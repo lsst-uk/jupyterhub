@@ -7,14 +7,25 @@ proxy:
       http: 30080
       https: 30443
 auth:
-  type: ldap
-  ldap:
-    server:
-      address: authorise.is.ed.ac.uk
-      ssl: true
-    dn:
-      templates:
-        - 'uid={username},ou=people,ou=central,dc=authorise,dc=ed,dc=ac,dc=uk'
+  type: github
+  github:
+    clientId: "c975990b19a0ee7014de"
+    clientSecret: "6b8487be7449731be31ed396381859a33c67ac5e"
+    callbackUrl: "https://jhub-pilot.metagrid.xyz/hub/oauth_callback"
+  whitelist:
+    users:
+      - gpfrancis
+#
+#auth:
+#  type: ldap
+#  ldap:
+#    server:
+#      address: authorise.is.ed.ac.uk
+#      ssl: true
+#    dn:
+#      templates:
+#        - 'uid={username},ou=people,ou=central,dc=authorise,dc=ed,dc=ac,dc=uk'
+#
 # If we're using a separate db instead of a persistent volume + sqlite then we want something like this
 #hub:
 #  db:
