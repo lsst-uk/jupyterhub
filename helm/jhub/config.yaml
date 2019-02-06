@@ -62,6 +62,7 @@ hub:
         cpus = {
           0: "0.5",
           1: "1"
+        }
         options = {}
         img = 0
         size = 0
