@@ -14,7 +14,8 @@ auth:
     callbackUrl: "https://jhub-pilot.metagrid.xyz/hub/oauth_callback"
   whitelist:
     users:
-      - gpfrancis
+      # - username
+      # add user whitelist here #
 #
 #auth:
 #  type: ldap
@@ -22,7 +23,10 @@ auth:
 #    server:
 #      address: authorise.is.ed.ac.uk
 #      ssl: true
+#      port: 636
 #    dn:
+#      user:
+         validRegex: ^[A-Za-z0-9_-]*$
 #      templates:
 #        - 'uid={username},ou=people,ou=central,dc=authorise,dc=ed,dc=ac,dc=uk'
 #
