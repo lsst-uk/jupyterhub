@@ -1,5 +1,7 @@
 FROM jupyter/base-notebook
 
+RUN conda update -n base conda
+
 RUN conda install --quiet --yes \
     'mysql-connector-python' \
     'matplotlib' \
@@ -7,9 +9,9 @@ RUN conda install --quiet --yes \
 
 RUN jupyter labextension install @jupyterlab/git
 
-RUN mkdir /opt/conda/lib/python3.6/site-packages/ztf
+RUN mkdir /opt/conda/lib/python3.7/site-packages/ztf
 
-COPY settings.py /opt/conda/lib/python3.6/site-packages/ztf
+COPY settings.py /opt/conda/lib/python3.7/site-packages/ztf
 
 USER root
 
