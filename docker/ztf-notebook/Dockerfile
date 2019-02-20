@@ -2,7 +2,8 @@ FROM jupyter/base-notebook
 
 RUN conda install --quiet --yes \
     'mysql-connector-python' \
-    'matplotlib'
+    'matplotlib' \
+    'astropy'
 
 RUN jupyter labextension install @jupyterlab/git
 
