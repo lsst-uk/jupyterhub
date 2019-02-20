@@ -57,9 +57,9 @@ hub:
           self.cpu_limit = options['cpu']
       def options_from_form(self, formdata):
         images = {
-          0: "jupyter/base-notebook",
-          1: "jupyter/datascience-notebook",
-          2: "192.168.140.29:5000/ztf-notebook:0.0.3",
+          0: "192.168.140.29:5000/ztf-notebook:0.0.4",
+          1: "jupyter/base-notebook",
+          2: "jupyter/datascience-notebook",
         }
         mems = {
           0: "256M",
@@ -91,9 +91,9 @@ hub:
     c.JupyterHub.spawner_class = MySpawner
     c.Spawner.options_form = """<label for='image'>Image</label>&nbsp;&nbsp;
       <select name='image'>
-        <option value='0'>Standard Notebook</option>
-        <option value='1'>Data Science Notebook</option>
-        <option value='2'>ZTF Notebook</option>
+        <option value='0' selected='selected'>ZTF Notebook</option>
+        <option value='1'>Standard Notebook</option>
+        <option value='2'>Data Science Notebook</option>
       </select>&nbsp;&nbsp;&nbsp;
       <label for='size'>Size</label>&nbsp;&nbsp;
       <select name='size'>
