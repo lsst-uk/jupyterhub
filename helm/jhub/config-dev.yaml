@@ -1,3 +1,5 @@
+debug:
+  enabled: true
 proxy:
   # use "openssl rand -hex 32" to generate a suitable token
   secretToken: ""
@@ -8,40 +10,64 @@ proxy:
       http: 30080
       https: 30443
 auth:
-  type: github
-  github:
-    clientId: "c975990b19a0ee7014de"
-    clientSecret: ""
-    callbackUrl: "https://jhub-pilot.metagrid.xyz/hub/oauth_callback"
-  whitelist:
-    users:
-      # - username
-      # add user whitelist here #
-#
-#auth:
-#  type: ldap
-#  ldap:
-#    server:
-#      address: authorise.is.ed.ac.uk
-#      ssl: true
-#      port: 636
-#    dn:
-#      lookup: False
-#      user:
-#        validRegex: ^[A-Za-z0-9_-]*$
-#        escape: True
-#      templates:
-#        - 'uid={username},ou=people,ou=central,dc=authorise,dc=ed,dc=ac,dc=uk'
-#
-# If we're using a separate db instead of a persistent volume + sqlite then we want something like this
-#hub:
-#  db:
-#    type: "postgres"
-#    url: "postgres+psycopg2://jhub:2jguehzj6b@192.168.1.12:5432/jhub"
+  type: custom
+  custom:
+    className: oauthenticator.generic.GenericOAuthenticator
+    config:
+      login_service: "EGI Check-in"
+      client_id: "8d5b193b-14a6-474b-bf2c-9b3a4a3bfb44"
+      client_secret: ""
+      token_url: https://aai-dev.egi.eu/oidc/token
+      userdata_url: https://aai-dev.egi.eu/oidc/userinfo
+      userdata_method: GET
+      userdata_params: {'state': 'state'}
+      username_key: sub
 hub:
+  baseUrl: /dev/
+  extraEnv:
+    OAUTH2_AUTHORIZE_URL: https://aai-dev.egi.eu/oidc/authorize
+    OAUTH2_TOKEN_URL: https://aai-dev.egi.eu/oidc/token
+    OAUTH_CALLBACK_URL: https://jhub-pilot.metagrid.xyz/dev/hub/oauth_callback
+    MY_GROUP: ^urn:mace:egi.eu:group:registry:UKLSST:role=member
+  #
+  # Custom authentictor for EGI Check-in
+  # - Checks that edu_person_entitlements is set and includes required group
+  # - Replaces "sub" with a 32 char hash (to avoid exceeding length restrictions in k8s)
+  #
+  # Custom spawner class
+  # - Includes form option to select image to use
+  # - Includes form option to select cpu/memory limits
+  #
   extraConfig: |
     from kubespawner.spawner import KubeSpawner
     from traitlets import observe
+    from tornado import gen
+    from oauthenticator.generic import GenericOAuthenticator
+    from re import match
+    from hashlib import sha1
+    from os import environ
+    class MyOAuthenticator(GenericOAuthenticator):
+      @gen.coroutine
+      def authenticate(self, handler, data=None):
+        _MY_GROUP = environ.get('MY_GROUP', '')
+        userdict = yield super().authenticate(handler, data)
+        if 'edu_person_entitlements' in userdict['auth_state']['oauth_user']:
+          entitlements = userdict['auth_state']['oauth_user']['edu_person_entitlements']
+          for ent in entitlements:
+            if match(_MY_GROUP, ent):
+              self.log.info("Allowing subject %s as member of group %s", userdict['name'], group)
+              break
+          else:
+            self.log.warning("Subject %s does not have required entitlements", userdict['name'])
+            return None
+        else:
+          self.log.warning("Subject %s does not have required entitlements", userdict['name'])
+          return None
+        m = sha1()
+        m.update(userdict['name'].encode('utf-8'))
+        userdict['name'] = m.hexdigest()[:32]
+        return userdict
+    c.JupyterHub.authenticator_class = MyOAuthenticator
     class MySpawner(KubeSpawner):
       @observe('user_options')
       def _update_options(self, change):
