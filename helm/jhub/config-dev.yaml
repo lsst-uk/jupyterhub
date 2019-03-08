@@ -127,3 +127,4 @@ hub:
         <option value='2'>Large (8G / 4 CPU)</option>
         <option value='3'>X-Large (24G / 12 CPU)</option>
       </select>"""
+    c.JupyterHub.template_path = ['/usr/local/share/jupyterhub/custom_templates']
