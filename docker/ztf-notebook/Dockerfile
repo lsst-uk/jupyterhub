@@ -7,7 +7,9 @@ RUN conda install --quiet --yes \
     'matplotlib' \
     'astropy'
 
-RUN jupyter labextension install @jupyterlab/git
+RUN jupyter labextension install @jupyterlab/git \
+ && pip install jupyterlab-git \
+ && jupyter serverextension enable --py jupyterlab_git --sys-prefix
 
 RUN mkdir /opt/conda/lib/python3.7/site-packages/ztf
 
