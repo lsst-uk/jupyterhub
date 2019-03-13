@@ -20,7 +20,7 @@ auth:
       token_url: https://aai-dev.egi.eu/oidc/token
       userdata_url: https://aai-dev.egi.eu/oidc/userinfo
       userdata_method: GET
-      userdata_params: {'state': 'state'}
+      userdata_params: {'state': 'state', 'scope': 'openid profile email eduperson_entitlement'}
       username_key: sub
 hub:
   image:
@@ -31,103 +31,118 @@ hub:
     OAUTH2_AUTHORIZE_URL: https://aai-dev.egi.eu/oidc/authorize
     OAUTH2_TOKEN_URL: https://aai-dev.egi.eu/oidc/token
     OAUTH_CALLBACK_URL: https://jhub-pilot.metagrid.xyz/dev/hub/oauth_callback
-    MY_GROUP: ^urn:mace:egi.eu:group:registry:UKLSST:role=member
-  #
-  # Custom authentictor for EGI Check-in
-  # - Checks that edu_person_entitlements is set and includes required group
-  # - Replaces "sub" with a 32 char hash (to avoid exceeding length restrictions in k8s)
-  #
-  # Custom spawner class
-  # - Includes form option to select image to use
-  # - Includes form option to select cpu/memory limits
-  #
-  extraConfig: |
-    from kubespawner.spawner import KubeSpawner
-    from traitlets import observe
-    from tornado import gen
-    from oauthenticator.generic import GenericOAuthenticator
-    from re import match
-    from hashlib import sha1
-    from os import environ
-    class MyOAuthenticator(GenericOAuthenticator):
-      @gen.coroutine
-      def authenticate(self, handler, data=None):
-        _MY_GROUP = environ.get('MY_GROUP', '')
-        userdict = yield super().authenticate(handler, data)
-        if 'edu_person_entitlements' in userdict['auth_state']['oauth_user']:
-          entitlements = userdict['auth_state']['oauth_user']['edu_person_entitlements']
-          for ent in entitlements:
-            if match(_MY_GROUP, ent):
-              self.log.info("Allowing subject %s as member of group %s", userdict['name'], group)
-              break
+    MY_GROUP: "^urn:mace:egi.eu:group:registry:UKLSST:role=member"
+    # use "openssl rand -hex 32" to generate a suitable token
+    JUPYTERHUB_CRYPT_KEY: ""
+  extraConfig:
+    # Custom spawner class
+    # - Includes form option to select image to use
+    # - Includes form option to select cpu/memory limits
+    custom_spawn: |
+      from kubespawner.spawner import KubeSpawner
+      from traitlets import observe
+      class MySpawner(KubeSpawner):
+        @observe('user_options')
+        def _update_options(self, change):
+          options = change.new
+          if 'image' in options:
+            self.singleuser_image_spec = options['image']
+          if 'mem' in options:
+            self.mem_guarantee = options['mem']
+            self.mem_limit = options['mem']
+          if 'cpu' in options:
+            self.cpu_guarantee = options['cpu']
+            self.cpu_limit = options['cpu']
+        def options_from_form(self, formdata):
+          images = {
+            0: "192.168.140.29:5000/ztf-notebook:0.0.5",
+            1: "jupyter/base-notebook",
+            2: "jupyter/datascience-notebook",
+          }
+          mems = {
+            0: "256M",
+            1: "1G",
+            2: "8G",
+            3: "24G"
+          }
+          cpus = {
+            0: 0.25,
+            1: 1.0,
+            2: 4.0,
+            3: 12.0
+          }
+          options = {}
+          img = 0
+          size = 0
+          try:
+            img = int(formdata.get('image', [''])[0])
+          except ValueError:
+            pass
+          options['image'] = images.get(img, images[0])
+          try:
+            size = int(formdata.get('size', [''])[0])
+          except ValueError:
+            pass
+          options['mem'] = mems.get(size, mems[1])
+          options['cpu'] = cpus.get(size, cpus[1])
+          return options
+      c.JupyterHub.spawner_class = MySpawner
+      c.Spawner.options_form = """<label for='image'>Image</label>&nbsp;&nbsp;
+        <select name='image'>
+          <option value='0' selected='selected'>ZTF Notebook</option>
+          <option value='1'>Standard Notebook</option>
+          <option value='2'>Data Science Notebook</option>
+        </select>&nbsp;&nbsp;&nbsp;
+        <label for='size'>Size</label>&nbsp;&nbsp;
+        <select name='size'>
+          <option value='0'>Tiny (256M / 0.25 CPU)</option>
+          <option value='1' selected='selected'>Small (1G / 1 CPU)</option>
+          <option value='2'>Large (8G / 4 CPU)</option>
+          <option value='3'>X-Large (24G / 12 CPU)</option>
+        </select>"""
+    # Custom authentictor for EGI Check-in
+    # - Checks that edu_person_entitlements is set and includes required group
+    # - Replaces "sub" with a 32 char hash (to avoid exceeding length restrictions in k8s)
+    # - Sets environment variables for git
+    custom_auth: |
+      from tornado import gen
+      from oauthenticator.generic import GenericOAuthenticator
+      from re import match
+      from hashlib import sha1
+      from os import environ
+      class MyOAuthenticator(GenericOAuthenticator):
+        @gen.coroutine
+        def authenticate(self, handler, data=None):
+          _MY_GROUP = environ.get('MY_GROUP', '')
+          userdict = yield super().authenticate(handler, data)
+          if 'edu_person_entitlements' in userdict['auth_state']['oauth_user']:
+            entitlements = userdict['auth_state']['oauth_user']['edu_person_entitlements']
+            for ent in entitlements:
+              if match(_MY_GROUP, ent):
+                self.log.info("Allowing subject %s as member of group %s", userdict['name'], _MY_GROUP)
+                break
+            else:
+              self.log.warning("Subject %s does not have required entitlements", userdict['name'])
+              return None
           else:
             self.log.warning("Subject %s does not have required entitlements", userdict['name'])
             return None
-        else:
-          self.log.warning("Subject %s does not have required entitlements", userdict['name'])
-          return None
-        m = sha1()
-        m.update(userdict['name'].encode('utf-8'))
-        userdict['name'] = m.hexdigest()[:32]
-        return userdict
-    c.JupyterHub.authenticator_class = MyOAuthenticator
-    class MySpawner(KubeSpawner):
-      @observe('user_options')
-      def _update_options(self, change):
-        options = change.new
-        if 'image' in options:
-          self.singleuser_image_spec = options['image']
-        if 'mem' in options:
-          self.mem_guarantee = options['mem']
-          self.mem_limit = options['mem']
-        if 'cpu' in options:
-          self.cpu_guarantee = options['cpu']
-          self.cpu_limit = options['cpu']
-      def options_from_form(self, formdata):
-        images = {
-          0: "192.168.140.29:5000/ztf-notebook:0.0.4",
-          1: "jupyter/base-notebook",
-          2: "jupyter/datascience-notebook",
-        }
-        mems = {
-          0: "256M",
-          1: "1G",
-          2: "8G",
-          3: "24G"
-        }
-        cpus = {
-          0: 0.25,
-          1: 1.0,
-          2: 4.0,
-          3: 12.0
-        }
-        options = {}
-        img = 0
-        size = 0
-        try:
-          img = int(formdata.get('image', [''])[0])
-        except ValueError:
-          pass
-        options['image'] = images.get(img, images[0])
-        try:
-          size = int(formdata.get('size', [''])[0])
-        except ValueError:
-          pass
-        options['mem'] = mems.get(size, mems[1])
-        options['cpu'] = cpus.get(size, cpus[1])
-        return options
-    c.JupyterHub.spawner_class = MySpawner
-    c.Spawner.options_form = """<label for='image'>Image</label>&nbsp;&nbsp;
-      <select name='image'>
-        <option value='0' selected='selected'>ZTF Notebook</option>
-        <option value='1'>Standard Notebook</option>
-        <option value='2'>Data Science Notebook</option>
-      </select>&nbsp;&nbsp;&nbsp;
-      <label for='size'>Size</label>&nbsp;&nbsp;
-      <select name='size'>
-        <option value='0'>Tiny (256M / 0.25 CPU)</option>
-        <option value='1' selected='selected'>Small (1G / 1 CPU)</option>
-        <option value='2'>Large (8G / 4 CPU)</option>
-        <option value='3'>X-Large (24G / 12 CPU)</option>
-      </select>"""
-    c.JupyterHub.template_path = ['/usr/local/share/jupyterhub/custom_templates']
+          m = sha1()
+          m.update(userdict['name'].encode('utf-8'))
+          userdict['name'] = m.hexdigest()[:32]
+          return userdict
+        @gen.coroutine
+        def pre_spawn_start(self, user, spawner):
+          _MY_GROUP = environ.get('MY_GROUP', '')
+          auth_state = yield user.get_auth_state()
+          if not auth_state:
+            self.log.warning("auth_state not available - custom environment variables will not be set")
+            return
+          spawner.environment['GIT_AUTHOR_NAME'] = auth_state['oauth_user']['name']
+          spawner.environment['GIT_COMMITTER_NAME'] = auth_state['oauth_user']['name']
+          spawner.environment['EMAIL'] = auth_state['oauth_user']['email']
+      c.JupyterHub.authenticator_class = MyOAuthenticator
+      c.Authenticator.enable_auth_state = True
+    # Specify a custom template path (works with custom hub image)
+    custom_template: |
+      c.JupyterHub.template_paths = ['/usr/local/share/jupyterhub/custom_templates']
