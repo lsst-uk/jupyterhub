@@ -55,7 +55,7 @@ hub:
             self.cpu_limit = options['cpu']
         def options_from_form(self, formdata):
           images = {
-            0: "192.168.140.29:5000/ztf-notebook:0.0.5",
+            0: "192.168.140.29:5000/ztf-notebook:0.0.6",
             1: "jupyter/base-notebook",
             2: "jupyter/datascience-notebook",
           }
