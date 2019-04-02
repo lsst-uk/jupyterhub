@@ -25,7 +25,7 @@ auth:
 hub:
   image:
     name: 192.168.140.29:5000/k8s-custom-hub
-    tag: '0.8.0'
+    tag: '0.8.0.1'
   baseUrl: /
   extraEnv:
     OAUTH2_AUTHORIZE_URL: https://aai-dev.egi.eu/oidc/authorize
