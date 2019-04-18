@@ -17,8 +17,8 @@ auth:
       login_service: "EGI Check-in"
       client_id: "8d5b193b-14a6-474b-bf2c-9b3a4a3bfb44"
       client_secret: ""
-      token_url: https://aai-dev.egi.eu/oidc/token
-      userdata_url: https://aai-dev.egi.eu/oidc/userinfo
+      token_url: https://aai.egi.eu/oidc/token
+      userdata_url: https://aai.egi.eu/oidc/userinfo
       userdata_method: GET
       userdata_params: {'state': 'state', 'scope': 'openid profile email eduperson_entitlement'}
       username_key: sub
@@ -28,9 +28,9 @@ hub:
     tag: '0.8.0.1'
   baseUrl: /
   extraEnv:
-    OAUTH2_AUTHORIZE_URL: https://aai-dev.egi.eu/oidc/authorize
-    OAUTH2_TOKEN_URL: https://aai-dev.egi.eu/oidc/token
-    OAUTH_CALLBACK_URL: https://jhub-pilot.metagrid.xyz/hub/oauth_callback
+    OAUTH2_AUTHORIZE_URL: https://aai.egi.eu/oidc/authorize
+    OAUTH2_TOKEN_URL: https://aai.egi.eu/oidc/token
+    OAUTH_CALLBACK_URL: https://jupyter-dev.lsst.ac.uk/hub/oauth_callback
     MY_GROUP: "^urn:mace:egi.eu:group:registry:UKLSST:role=member"
     # use "openssl rand -hex 32" to generate a suitable token
     JUPYTERHUB_CRYPT_KEY: ""
