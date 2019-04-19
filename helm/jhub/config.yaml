@@ -30,7 +30,7 @@ hub:
   extraEnv:
     OAUTH2_AUTHORIZE_URL: https://aai.egi.eu/oidc/authorize
     OAUTH2_TOKEN_URL: https://aai.egi.eu/oidc/token
-    OAUTH_CALLBACK_URL: https://jupyter-dev.lsst.ac.uk/hub/oauth_callback
+    OAUTH_CALLBACK_URL: https://jupyter.lsst.ac.uk/hub/oauth_callback
     MY_GROUP: "^urn:mace:egi.eu:group:registry:UKLSST:role=member"
     # use "openssl rand -hex 32" to generate a suitable token
     JUPYTERHUB_CRYPT_KEY: ""
@@ -138,9 +138,22 @@ hub:
           if not auth_state:
             self.log.warning("auth_state not available - custom environment variables will not be set")
             return
-          spawner.environment['GIT_AUTHOR_NAME'] = auth_state['oauth_user']['name']
-          spawner.environment['GIT_COMMITTER_NAME'] = auth_state['oauth_user']['name']
-          spawner.environment['EMAIL'] = auth_state['oauth_user']['email']
+          fullname = ''
+          email = ''
+          if 'oauth_user' in auth_state:
+            if 'name' in auth_state['oauth_user']:
+              fullname += auth_state['oauth_user']['name']
+            else:
+              name = []
+              if 'given_name' in auth_state['oauth_user']:
+                name.append(auth_state['oauth_user']['given_name'])
+              if 'family_name' in auth_state['oauth_user']:
+                name.append(auth_state['oauth_user']['family_name'])
+              fullname += ' '.join(name)
+            email = auth_state['oauth_user'].get('email', '')
+          spawner.environment['GIT_AUTHOR_NAME'] = fullname
+          spawner.environment['GIT_COMMITTER_NAME'] = fullname
+          spawner.environment['EMAIL'] = email
       c.JupyterHub.authenticator_class = MyOAuthenticator
       c.Authenticator.enable_auth_state = True
     # Specify a custom template path (works with custom hub image)

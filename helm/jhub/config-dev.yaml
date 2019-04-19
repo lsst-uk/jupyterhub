@@ -17,8 +17,8 @@ auth:
       login_service: "EGI Check-in"
       client_id: "8d5b193b-14a6-474b-bf2c-9b3a4a3bfb44"
       client_secret: ""
-      token_url: https://aai-dev.egi.eu/oidc/token
-      userdata_url: https://aai-dev.egi.eu/oidc/userinfo
+      token_url: https://aai.egi.eu/oidc/token
+      userdata_url: https://aai.egi.eu/oidc/userinfo
       userdata_method: GET
       userdata_params: {'state': 'state', 'scope': 'openid profile email eduperson_entitlement'}
       username_key: sub
@@ -28,9 +28,9 @@ hub:
     tag: '0.8.0'
   baseUrl: /dev/
   extraEnv:
-    OAUTH2_AUTHORIZE_URL: https://aai-dev.egi.eu/oidc/authorize
-    OAUTH2_TOKEN_URL: https://aai-dev.egi.eu/oidc/token
-    OAUTH_CALLBACK_URL: https://jhub-pilot.metagrid.xyz/dev/hub/oauth_callback
+    OAUTH2_AUTHORIZE_URL: https://aai.egi.eu/oidc/authorize
+    OAUTH2_TOKEN_URL: https://aai.egi.eu/oidc/token
+    OAUTH_CALLBACK_URL: https://jupyter.lsst.ac.uk/hub/oauth_callback
     MY_GROUP: "^urn:mace:egi.eu:group:registry:UKLSST:role=member"
     # use "openssl rand -hex 32" to generate a suitable token
     JUPYTERHUB_CRYPT_KEY: ""
@@ -56,7 +56,7 @@ hub:
             self.cpu_limit = options['cpu']
         def options_from_form(self, formdata):
           images = {
-            0: "192.168.140.29:5000/ztf-notebook:0.0.5",
+            0: "192.168.140.29:5000/ztf-notebook:0.0.6",
             1: "jupyter/base-notebook",
             2: "jupyter/datascience-notebook",
           }
@@ -149,9 +149,22 @@ hub:
           if not auth_state:
             self.log.warning("auth_state not available - custom environment variables will not be set")
             return
-          spawner.environment['GIT_AUTHOR_NAME'] = auth_state['oauth_user']['name']
-          spawner.environment['GIT_COMMITTER_NAME'] = auth_state['oauth_user']['name']
-          spawner.environment['EMAIL'] = auth_state['oauth_user']['email']
+          fullname = ''
+          email = ''
+          if 'oauth_user' in auth_state:
+            if 'name' in auth_state['oauth_user']:
+              fullname += auth_state['oauth_user']['name']
+            else:
+              name = []
+              if 'given_name' in auth_state['oauth_user']:
+                name.append(auth_state['oauth_user']['given_name'])
+              if 'family_name' in auth_state['oauth_user']:
+                name.append(auth_state['oauth_user']['family_name'])
+              fullname += ' '.join(name)
+            email = auth_state['oauth_user'].get('email', '')
+          spawner.environment['GIT_AUTHOR_NAME'] = fullname
+          spawner.environment['GIT_COMMITTER_NAME'] = fullname
+          spawner.environment['EMAIL'] = email
       c.JupyterHub.authenticator_class = MyOAuthenticator
       c.Authenticator.enable_auth_state = True
     # Specify a custom template path (works with custom hub image)
