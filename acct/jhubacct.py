@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_restful import Api, Resource, reqparse
+from math import ceil
 import sqlite3
 import json
 
@@ -48,7 +49,7 @@ class JobList(Resource):
             if not args[key]:
                 args[key] = ''
         c.execute("INSERT INTO jobs (name,user,ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?)", 
-                (args["name"], args["user"], args["ctime"], args["start"], args["end"], int(math.ceil(args["ncpus"])), args["mem"], args["status"]))
+                (args["name"], args["user"], args["ctime"], args["start"], args["end"], int(ceil(args["ncpus"])), args["mem"], args["status"]))
         jobid = c.lastrowid
         conn.commit()
         status = 201
@@ -112,7 +113,7 @@ class Job(Resource):
                 if not args[key]:
                     args[key] = ''
             c.execute("INSERT INTO jobs (name,user,ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?)", 
-                    (args["name"], args["user"], args["ctime"], args["start"], args["end"], int(math.ceil(args["ncpus"])), args["mem"], args["status"]))
+                    (args["name"], args["user"], args["ctime"], args["start"], args["end"], int(ceil(args["ncpus"])), args["mem"], args["status"]))
             conn.commit()
             status = 201
         c.execute('SELECT * FROM jobs WHERE id=?', (jobid,))
