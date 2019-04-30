@@ -42,6 +42,11 @@ class JobList(Resource):
             return 'Job ID specified in POST request', 405
         if not args["status"]:
             args["status"] = "Q"
+        if args["ncpus"]:
+            try:
+                args["ncpus"] = int(ceil(float(args["ncpus"])))
+            except:
+                return 'error parsing value for ncpus', 400
 
         conn = sqlite3.connect(db_file)
         c = conn.cursor()
@@ -49,7 +54,7 @@ class JobList(Resource):
             if not args[key]:
                 args[key] = ''
         c.execute("INSERT INTO jobs (name,user,ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?)", 
-                (args["name"], args["user"], args["ctime"], args["start"], args["end"], int(ceil(args["ncpus"])), args["mem"], args["status"]))
+                (args["name"], args["user"], args["ctime"], args["start"], args["end"], args["ncpus"], args["mem"], args["status"]))
         jobid = c.lastrowid
         conn.commit()
         status = 201
@@ -95,6 +100,11 @@ class Job(Resource):
             args["id"] = None
         if not args["status"]:
             args["status"] = "Q"
+        if args["ncpus"]:
+            try:
+                args["ncpus"] = int(ceil(float(args["ncpus"])))
+            except:
+                return 'error parsing value for ncpus', 400
 
         conn = sqlite3.connect(db_file)
         c = conn.cursor()
@@ -113,7 +123,7 @@ class Job(Resource):
                 if not args[key]:
                     args[key] = ''
             c.execute("INSERT INTO jobs (name,user,ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?)", 
-                    (args["name"], args["user"], args["ctime"], args["start"], args["end"], int(ceil(args["ncpus"])), args["mem"], args["status"]))
+                    (args["name"], args["user"], args["ctime"], args["start"], args["end"], args["ncpus"], args["mem"], args["status"]))
             conn.commit()
             status = 201
         c.execute('SELECT * FROM jobs WHERE id=?', (jobid,))
