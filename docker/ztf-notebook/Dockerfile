@@ -23,5 +23,8 @@ RUN apt-get update && apt-get -yq dist-upgrade \
  && apt-get clean \
 && rm -rf /var/lib/apt/lists/*
 
+RUN conda install --quiet --yes -c conda-forge extinction \
+  && pip install astrorapid
+
 USER $NB_UID
 
