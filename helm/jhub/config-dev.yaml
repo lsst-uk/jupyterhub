@@ -25,12 +25,12 @@ auth:
 hub:
   image:
     name: 192.168.140.29:5000/k8s-custom-hub
-    tag: '0.8.0.1'
+    tag: '0.8.0.2'
   baseUrl: /dev/
   extraEnv:
     OAUTH2_AUTHORIZE_URL: https://aai.egi.eu/oidc/authorize
     OAUTH2_TOKEN_URL: https://aai.egi.eu/oidc/token
-    OAUTH_CALLBACK_URL: https://jupyter.lsst.ac.uk/hub/oauth_callback
+    OAUTH_CALLBACK_URL: https://jupyter.lsst.ac.uk/dev/hub/oauth_callback
     MY_GROUP: "^urn:mace:egi.eu:group:registry:UKLSST:role=member"
     # use "openssl rand -hex 32" to generate a suitable token
     JUPYTERHUB_CRYPT_KEY: ""
@@ -41,7 +41,9 @@ hub:
     custom_spawn: |
       from kubespawner.spawner import KubeSpawner
       from traitlets import observe
-      from urllib import request
+      from time import time
+      from nacl import encoding
+      from nacl import signing
       class MySpawner(KubeSpawner):
         @observe('user_options')
         def _update_options(self, change):
@@ -56,7 +58,7 @@ hub:
             self.cpu_limit = options['cpu']
         def options_from_form(self, formdata):
           images = {
-            0: "192.168.140.29:5000/ztf-notebook:0.0.6",
+            0: "192.168.140.29:5000/ztf-notebook:0.0.7",
             1: "jupyter/base-notebook",
             2: "jupyter/datascience-notebook",
           }
@@ -87,6 +89,39 @@ hub:
           options['mem'] = mems.get(size, mems[1])
           options['cpu'] = cpus.get(size, cpus[1])
           return options
+        def send_acct(self, data, id=None):
+          signing_key_hex = "12b82171c9ad5915899f3a7ed5e948a17c0f9aeeb9034b71b04e6407e06a9322"
+          if id:
+            method = "PUT"
+            url = 'http://192.168.140.14:5000/job/%s' % (id)
+          else:
+            method = "POST"
+            url = 'http://192.168.140.14:5000/job'
+          self.log.info("Sending accounting data %s %s %s" % (method, url, str(data)))
+          signing_key = signing.SigningKey(signing_key_hex, encoder=encoding.HexEncoder)
+          sig = encoding.URLSafeBase64Encoder.encode(signing_key.sign(data).signature)
+          self.log.info("Accounting signature %s" % (sig))
+          req = request.Request(url=url, data=data, method=method)
+          req.add_header("Content-Type", "application/json")
+          req.add_header("X-Signature", sig)
+          with request.urlopen(req) as f:
+            return f.read(256).decode('utf-8')
+          # TODO: catch errors and log
+        def start(self):
+          r = super().start()
+          id = self.environment['JOB_ID']
+          #url = 'http://192.168.140.14:5000/job/%s' % (id)
+          message = '{ "start":"%d", "ncpus":"%.2f", "mem":"%s", "status":"R" }' % (int(time()), self.cpu_guarantee, self.mem_guarantee)
+          data = message.encode('utf-8')
+          self.send_acct(data, id)
+          #data = '{ "start": "%d" }' % (int(time()))
+          #data = data.encode('ascii')
+          #req = request.Request(url=url, data=data, method='PUT')
+          #req.add_header("Content-Type", "application/json")
+          # TODO: catch errors and log
+          # TODO: check response
+          #request.urlopen(req)
+          return r
       c.JupyterHub.spawner_class = MySpawner
       c.Spawner.options_form = """<label for='image'>Image</label>&nbsp;&nbsp;
         <select name='image'>
@@ -101,19 +136,43 @@ hub:
           <option value='2'>Large (8G / 4 CPU)</option>
           <option value='3'>X-Large (24G / 12 CPU)</option>
         </select>"""
-      def acct_pre(spawner):
-        id = spawner.name
+    # Custom hooks for accounting
+    custom_acct: |
+      from urllib import request
+      from time import time
+      import json
+      def acct_start(spawner):
+        #url = 'http://192.168.140.14:5000/job'
         username = spawner.user.name
-        data = '{ "id": "%s", "user": "%s" }' % (id, username)
-        data = data.encode('ascii')
-        req = request.Request(url=url, data=data, method='PUT')
-        req.add_header("Content-Type", "application/json")
-        request.urlopen(req)
+        data = '{ "user": "%s", "ctime":"%d" }' % (username, int(time()))
+        data = data.encode('utf-8')
+        #req = request.Request(url=url, data=data, method='POST')
+        #req.add_header("Content-Type", "application/json")
+        resp = spawner.send_acct(data)
+        # TODO: catch errors and log
+        # TODO: check response code
+        #with request.urlopen(req) as f:
+        #  resp = json.loads(f.read(256).decode('utf-8'))
+        if resp:
+          resp = json.loads(resp)
+          id = resp.get('id')
+          spawner.environment['JOB_ID'] = str(id)
+      c.Spawner.pre_spawn_hook = acct_start
+      def acct_stop(spawner):
+        id = spawner.environment['JOB_ID']
+        #url = 'http://192.168.140.14:5000/job/%s' % (id)
+        data = '{ "end":"%d", "status":"E" }' % (int(time()))
+        data = data.encode('utf-8')
+        #req = request.Request(url=url, data=data, method='PUT')
+        #req.add_header("Content-Type", "application/json")
+        resp = spawner.send_acct(data, id)
+        # TODO: catch errors and log
         # TODO: check response
-      c.Spawner.pre_spawn_hook = acct_pre
+        #request.urlopen(req)
+      c.Spawner.post_stop_hook = acct_stop
     # Custom authentictor for EGI Check-in
     # - Checks that edu_person_entitlements is set and includes required group
-    # - Replaces "sub" with a 32 char hash (to avoid exceeding length restrictions in k8s)
+    # - Replaces "sub" with a 20 char hash (to avoid exceeding length restrictions in k8s)
     # - Sets environment variables for git
     custom_auth: |
       from tornado import gen
@@ -140,7 +199,7 @@ hub:
             return None
           m = sha1()
           m.update(userdict['name'].encode('utf-8'))
-          userdict['name'] = m.hexdigest()[:32]
+          userdict['name'] = m.hexdigest()[:20]
           return userdict
         @gen.coroutine
         def pre_spawn_start(self, user, spawner):
