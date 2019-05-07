@@ -1,13 +1,40 @@
-from flask import Flask
+from flask import Flask, request
 from flask_restful import Api, Resource, reqparse
 from math import ceil
 import sqlite3
 import json
+import nacl.encoding
+import nacl.signing
 
 app = Flask(__name__)
 api = Api(app)
 
 db_file = "jobs.db"
+verify_key_hex = "596df1bbafa78ae6fc1333de6779d22a641170200651a40d96df55b04b7fd925"
+verify_key = nacl.signing.VerifyKey(verify_key_hex, encoder=nacl.encoding.HexEncoder)
+
+parser = reqparse.RequestParser()
+parser.add_argument("id")
+parser.add_argument("name")
+parser.add_argument("user")
+parser.add_argument("ctime")
+parser.add_argument("start")
+parser.add_argument("end")
+parser.add_argument("ncpus")
+parser.add_argument("mem")
+parser.add_argument("status")
+parser.add_argument('X-Signature', location='headers')
+
+def validate(data, sig):
+    if not sig:
+        return True
+    try:
+        sig = nacl.encoding.URLSafeBase64Encoder.decode(str(sig))
+        verify_key.verify(data,sig)
+        return True
+    #except nacl.exceptions.BadSignatureError:
+    except:
+        return False
 
 class JobList(Resource):
     # get a list of jobs
@@ -26,17 +53,10 @@ class JobList(Resource):
 
     # create a job
     def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("id")
-        parser.add_argument("name")
-        parser.add_argument("user")
-        parser.add_argument("ctime")
-        parser.add_argument("start")
-        parser.add_argument("end")
-        parser.add_argument("ncpus")
-        parser.add_argument("mem")
-        parser.add_argument("status")
+        message = request.data
         args = parser.parse_args()
+        if not validate(message, args.pop("X-Signature", None)):
+            return 'Invalid signature', 400
 
         if args["id"]:
             return 'Job ID specified in POST request', 405
@@ -82,17 +102,10 @@ class Job(Resource):
 
     # create/update a job
     def put(self, jobid):
-        parser = reqparse.RequestParser()
-        parser.add_argument("id")
-        parser.add_argument("name")
-        parser.add_argument("user")
-        parser.add_argument("ctime")
-        parser.add_argument("start")
-        parser.add_argument("end")
-        parser.add_argument("ncpus")
-        parser.add_argument("mem")
-        parser.add_argument("status")
+        message = request.data
         args = parser.parse_args()
+        if not validate(message, args.pop("X-Signature", None)):
+            return 'Invalid signature', 400
 
         if args["id"]:
             if int(args["id"]) != int(jobid):
@@ -144,5 +157,5 @@ api.add_resource(JobList, "/job")
 api.add_resource(Job, "/job/<string:jobid>")
 
 if (__name__ == '__main__'):
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
 
