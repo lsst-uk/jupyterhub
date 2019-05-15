@@ -1,3 +1,7 @@
+#
+# REST service to keep track of active jobs
+#
+
 from flask import Flask, request
 from flask_restful import Api, Resource, reqparse
 from math import ceil
@@ -147,14 +151,65 @@ class Job(Resource):
 
     # create job
     def post(self):
-        return 'create', 200
+        return '', 501
 
     # not yet implemented
     def delete(self, jobid):
         return '', 501
 
+class User(Resource):
+    # get a user
+    def get(self, uid):
+        conn = sqlite3.connect(db_file)
+        c = conn.cursor()
+        c.execute('SELECT * FROM users WHERE uid=?', (uid,))
+        job = c.fetchone()
+        fields = c.description
+        conn.close()
+        if job:
+            output = dict((fields[i][0], value) for i, value in enumerate(job))
+            return output, 200
+        else:
+            return "Not found", 404
+
+    # create/update a job
+    def put(self, uid):
+        message = request.data
+        p = reqparse.RequestParser()
+        p.add_argument("name")
+        p.add_argument('X-Signature', location='headers')
+        args = p.parse_args()
+        if not validate(message, args.pop("X-Signature", None)):
+            return 'Invalid signature', 400
+
+        if not args["name"]:
+            args["name"] = ""
+
+        conn = sqlite3.connect(db_file)
+        c = conn.cursor()
+        c.execute("SELECT * FROM jobs WHERE uid=?", (uid,))
+        job = c.fetchone()
+        if job:
+            # do update
+            c.execute('UPDATE users SET name=? WHERE uid=?', (args["name"], uid))
+            conn.commit()
+            status = 200
+        else:
+            # do create
+            c.execute("INSERT INTO users (uid,name) VALUES (?,?)",
+                    (uid, args["name"]))
+            conn.commit()
+            status = 201
+        c.execute('SELECT * FROM users WHERE uid=?', (uid,))
+        user = c.fetchone()
+        output = dict((c.description[i][0], value) for i, value in enumerate(user))
+        conn.close()
+        return output, status
+
+
 api.add_resource(JobList, "/job")
 api.add_resource(Job, "/job/<string:jobid>")
+api.add_resource(User, "/user/<string:uid>")
 
 if (__name__ == '__main__'):
     app.run(debug=True, port=5000)

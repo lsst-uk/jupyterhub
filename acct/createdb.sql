@@ -10,3 +10,8 @@ CREATE TABLE jobs (
 	status TEXT
 );
 
+CREATE TABLE users (
+        uid TEXT,
+        name TEXT
+);
+
