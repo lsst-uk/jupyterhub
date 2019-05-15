@@ -14,7 +14,7 @@ app = Flask(__name__)
 api = Api(app)
 
 db_file = "jobs.db"
-verify_key_hex = "596df1bbafa78ae6fc1333de6779d22a641170200651a40d96df55b04b7fd925"
+verify_key_hex = ""
 verify_key = nacl.signing.VerifyKey(verify_key_hex, encoder=nacl.encoding.HexEncoder)
 
 parser = reqparse.RequestParser()
@@ -31,7 +31,7 @@ parser.add_argument('X-Signature', location='headers')
 
 def validate(data, sig):
     if not sig:
-        return True
+        return False
     try:
         sig = nacl.encoding.URLSafeBase64Encoder.decode(str(sig))
         verify_key.verify(data,sig)
@@ -187,7 +187,7 @@ class User(Resource):
 
         conn = sqlite3.connect(db_file)
         c = conn.cursor()
-        c.execute("SELECT * FROM jobs WHERE uid=?", (uid,))
+        c.execute("SELECT * FROM users WHERE uid=?", (uid,))
         job = c.fetchone()
         if job:
             # do update
