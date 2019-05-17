@@ -90,7 +90,7 @@ hub:
           options['cpu'] = cpus.get(size, cpus[1])
           return options
         def send_acct(self, data, id=None):
-          signing_key_hex = "12b82171c9ad5915899f3a7ed5e948a17c0f9aeeb9034b71b04e6407e06a9322"
+          signing_key_hex = ""
           if id:
             method = "PUT"
             url = 'http://192.168.140.14:5000/job/%s' % (id)
