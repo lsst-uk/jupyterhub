@@ -1,3 +1,6 @@
+custom:
+  accounting:
+    signing_key_hex: ""
 debug:
   enabled: true
 proxy:
@@ -33,6 +36,7 @@ hub:
     OAUTH_CALLBACK_URL: https://jupyter.lsst.ac.uk/dev/hub/oauth_callback
     MY_GROUP: "^urn:mace:egi.eu:group:registry:UKLSST:role=member"
     # use "openssl rand -hex 32" to generate a suitable token
+    # required to allow pre spawn hook access to auth_state
     JUPYTERHUB_CRYPT_KEY: ""
   extraConfig:
     # Custom spawner class
@@ -44,6 +48,7 @@ hub:
       from time import time
       from nacl import encoding
       from nacl import signing
+      from z2jh import get_config
       class MySpawner(KubeSpawner):
         @observe('user_options')
         def _update_options(self, change):
@@ -90,7 +95,7 @@ hub:
           options['cpu'] = cpus.get(size, cpus[1])
           return options
         def send_acct(self, data, id=None):
-          signing_key_hex = ""
+          signing_key_hex = get_config('custom.accounting.signing_key_hex')
           if id:
             method = "PUT"
             url = 'http://192.168.140.14:5000/job/%s' % (id)
@@ -182,9 +187,10 @@ hub:
       from os import environ
       from nacl import encoding
       from nacl import signing
+      from z2jh import get_config
       class MyOAuthenticator(GenericOAuthenticator):
         def send_user_info(self, data, uid):
-          signing_key_hex = ""
+          signing_key_hex = get_config('custom.accounting.signing_key_hex')
           method = "PUT"
           url = 'http://192.168.140.14:5000/user/%s' % (uid)
           self.log.info("Sending user data to accounting %s %s %s" % (method, url, str(data)))
