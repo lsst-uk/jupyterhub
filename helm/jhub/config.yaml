@@ -180,7 +180,22 @@ hub:
       from re import match
       from hashlib import sha1
       from os import environ
+      from nacl import encoding
+      from nacl import signing
       class MyOAuthenticator(GenericOAuthenticator):
+        def send_user_info(self, data, uid):
+          signing_key_hex = ""
+          method = "PUT"
+          url = 'http://192.168.140.14:5000/user/%s' % (uid)
+          self.log.info("Sending user data to accounting %s %s %s" % (method, url, str(data)))
+          signing_key = signing.SigningKey(signing_key_hex, encoder=encoding.HexEncoder)
+          sig = encoding.URLSafeBase64Encoder.encode(signing_key.sign(data).signature)
+          self.log.info("Accounting signature %s" % (sig))
+          req = request.Request(url=url, data=data, method=method)
+          req.add_header("Content-Type", "application/json")
+          req.add_header("X-Signature", sig)
+          with request.urlopen(req) as f:
+            return f.read(256).decode('utf-8')
         @gen.coroutine
         def authenticate(self, handler, data=None):
           _MY_GROUP = environ.get('MY_GROUP', '')
@@ -200,6 +215,22 @@ hub:
           m = sha1()
           m.update(userdict['name'].encode('utf-8'))
           userdict['name'] = m.hexdigest()[:20]
+
+          auth_state = userdict['auth_state']
+          fullname = ''
+          if 'name' in auth_state['oauth_user']:
+            fullname += auth_state['oauth_user']['name']
+          else:
+            name = []
+            if 'given_name' in auth_state['oauth_user']:
+              name.append(auth_state['oauth_user']['given_name'])
+            if 'family_name' in auth_state['oauth_user']:
+              name.append(auth_state['oauth_user']['family_name'])
+            fullname += ' '.join(name)
+          data = '{ "name":"%s" }' % (fullname)
+          data = data.encode('utf-8')
+          resp = self.send_user_info(data, userdict['name'])
+
           return userdict
         @gen.coroutine
         def pre_spawn_start(self, user, spawner):
