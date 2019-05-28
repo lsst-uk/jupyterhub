@@ -1,6 +1,7 @@
 custom:
   accounting:
     signing_key_hex: ""
+    url: "http://192.168.140.14:5000"
 debug:
   enabled: true
 proxy:
@@ -96,12 +97,13 @@ hub:
           return options
         def send_acct(self, data, id=None):
           signing_key_hex = get_config('custom.accounting.signing_key_hex')
+          acct_url = get_config('custom.accounting.url')
           if id:
             method = "PUT"
-            url = 'http://192.168.140.14:5000/job/%s' % (id)
+            url = '%s/job/%s' % (acct_url, id)
           else:
             method = "POST"
-            url = 'http://192.168.140.14:5000/job'
+            url = '%s/job' % (acct_url)
           self.log.info("Sending accounting data %s %s %s" % (method, url, str(data)))
           signing_key = signing.SigningKey(signing_key_hex, encoder=encoding.HexEncoder)
           sig = encoding.URLSafeBase64Encoder.encode(signing_key.sign(data).signature)
@@ -115,17 +117,9 @@ hub:
         def start(self):
           r = super().start()
           id = self.environment['JOB_ID']
-          #url = 'http://192.168.140.14:5000/job/%s' % (id)
           message = '{ "start":"%d", "ncpus":"%.2f", "mem":"%s", "status":"R" }' % (int(time()), self.cpu_guarantee, self.mem_guarantee)
           data = message.encode('utf-8')
           self.send_acct(data, id)
-          #data = '{ "start": "%d" }' % (int(time()))
-          #data = data.encode('ascii')
-          #req = request.Request(url=url, data=data, method='PUT')
-          #req.add_header("Content-Type", "application/json")
-          # TODO: catch errors and log
-          # TODO: check response
-          #request.urlopen(req)
           return r
       c.JupyterHub.spawner_class = MySpawner
       c.Spawner.options_form = """<label for='image'>Image</label>&nbsp;&nbsp;
@@ -147,17 +141,12 @@ hub:
       from time import time
       import json
       def acct_start(spawner):
-        #url = 'http://192.168.140.14:5000/job'
         username = spawner.user.name
         data = '{ "user": "%s", "ctime":"%d" }' % (username, int(time()))
         data = data.encode('utf-8')
-        #req = request.Request(url=url, data=data, method='POST')
-        #req.add_header("Content-Type", "application/json")
         resp = spawner.send_acct(data)
         # TODO: catch errors and log
         # TODO: check response code
-        #with request.urlopen(req) as f:
-        #  resp = json.loads(f.read(256).decode('utf-8'))
         if resp:
           resp = json.loads(resp)
           id = resp.get('id')
@@ -165,11 +154,8 @@ hub:
       c.Spawner.pre_spawn_hook = acct_start
       def acct_stop(spawner):
         id = spawner.environment['JOB_ID']
-        #url = 'http://192.168.140.14:5000/job/%s' % (id)
         data = '{ "end":"%d", "status":"E" }' % (int(time()))
         data = data.encode('utf-8')
-        #req = request.Request(url=url, data=data, method='PUT')
-        #req.add_header("Content-Type", "application/json")
         resp = spawner.send_acct(data, id)
         # TODO: catch errors and log
         # TODO: check response
@@ -191,8 +177,9 @@ hub:
       class MyOAuthenticator(GenericOAuthenticator):
         def send_user_info(self, data, uid):
           signing_key_hex = get_config('custom.accounting.signing_key_hex')
+          acct_url = get_config('custom.accounting.url')
           method = "PUT"
-          url = 'http://192.168.140.14:5000/user/%s' % (uid)
+          url = '%s/user/%s' % (acct_url, uid)
           self.log.info("Sending user data to accounting %s %s %s" % (method, url, str(data)))
           signing_key = signing.SigningKey(signing_key_hex, encoder=encoding.HexEncoder)
           sig = encoding.URLSafeBase64Encoder.encode(signing_key.sign(data).signature)
