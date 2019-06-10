@@ -2,7 +2,7 @@ CREATE TABLE jobs (
 	id INTEGER PRIMARY KEY,
 	name TEXT, 
 	user TEXT, 
-	group TEXT, 
+	'group' TEXT, 
 	ctime INTEGER, 
 	start INTEGER, 
 	end INTEGER, 
