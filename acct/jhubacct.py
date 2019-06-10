@@ -21,6 +21,7 @@ parser = reqparse.RequestParser()
 parser.add_argument("id")
 parser.add_argument("name")
 parser.add_argument("user")
+parser.add_argument("group")
 parser.add_argument("ctime")
 parser.add_argument("start")
 parser.add_argument("end")
@@ -77,8 +78,8 @@ class JobList(Resource):
         for key in args:
             if not args[key]:
                 args[key] = ''
-        c.execute("INSERT INTO jobs (name,user,ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?)", 
-                (args["name"], args["user"], args["ctime"], args["start"], args["end"], args["ncpus"], args["mem"], args["status"]))
+        c.execute("INSERT INTO jobs (name,user,group,ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?)", 
+                (args["name"], args["user"], args["group"], args["ctime"], args["start"], args["end"], args["ncpus"], args["mem"], args["status"]))
         jobid = c.lastrowid
         conn.commit()
         status = 201
@@ -139,8 +140,8 @@ class Job(Resource):
             for key in args:
                 if not args[key]:
                     args[key] = ''
-            c.execute("INSERT INTO jobs (name,user,ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?)", 
-                    (args["name"], args["user"], args["ctime"], args["start"], args["end"], args["ncpus"], args["mem"], args["status"]))
+            c.execute("INSERT INTO jobs (name,user,group,ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?)", 
+                    (args["name"], args["user"], args["group"], args["ctime"], args["start"], args["end"], args["ncpus"], args["mem"], args["status"]))
             conn.commit()
             status = 201
         c.execute('SELECT * FROM jobs WHERE id=?', (jobid,))
