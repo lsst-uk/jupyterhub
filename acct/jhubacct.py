@@ -78,7 +78,7 @@ class JobList(Resource):
         for key in args:
             if not args[key]:
                 args[key] = ''
-        c.execute("INSERT INTO jobs (name,user,group,ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?)", 
+        c.execute("INSERT INTO jobs (name,user,'group',ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?,?)", 
                 (args["name"], args["user"], args["group"], args["ctime"], args["start"], args["end"], args["ncpus"], args["mem"], args["status"]))
         jobid = c.lastrowid
         conn.commit()
@@ -140,7 +140,7 @@ class Job(Resource):
             for key in args:
                 if not args[key]:
                     args[key] = ''
-            c.execute("INSERT INTO jobs (name,user,group,ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?)", 
+            c.execute("INSERT INTO jobs (name,user,'group',ctime,start,end,ncpus,mem,status) VALUES (?,?,?,?,?,?,?,?,?)", 
                     (args["name"], args["user"], args["group"], args["ctime"], args["start"], args["end"], args["ncpus"], args["mem"], args["status"]))
             conn.commit()
             status = 201
