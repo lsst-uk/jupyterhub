@@ -6,15 +6,17 @@ hostname = "jhub"
 
 conn = sqlite3.connect(db_file)
 c = conn.cursor()
-c.execute('SELECT * FROM jobs WHERE status="E"')
+c.execute('SELECT id, name, user, "group", ctime, start, end, ncpus, mem, status FROM jobs WHERE status="E"')
 jobs = c.fetchall()
 if jobs:
     for job in jobs:
-        (jobid, name, user, ctime, start, end, ncpus, mem, status) = job
-        print ("%s;E;%d; user=%s jobname=%s ctime=%d start=%s end=%d exec_host=%s/0*%d Resource_List.ncpus=%d Resource_List.mem=%s" % (
+        (jobid, name, user, group, ctime, start, end, ncpus, mem, status) = job
+        ncpus = int(ncpus) if ncpus else 0
+        print ("%s;E;%d; user=%s group=%s jobname=%s ctime=%d start=%s end=%d exec_host=%s/0*%d Resource_List.ncpus=%d Resource_List.mem=%s" % (
             datetime.utcnow().strftime("%m/%d/%Y %H:%M:%S"),
             jobid,
             user,
+            group,
             name,
             ctime,
             start,
