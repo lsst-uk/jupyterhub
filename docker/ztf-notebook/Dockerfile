@@ -27,5 +27,7 @@ RUN conda install --quiet --yes -c conda-forge extinction mosfit \
   && pip install astrorapid \
   && pip install healpy
 
+RUN pip install wget
+
 USER $NB_UID
 
