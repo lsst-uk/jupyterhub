@@ -13,9 +13,10 @@ Deployment consists of the following steps:
 3. Use Rancher to deploy Kubernetes.
 4. Set up the OIDC client in EGI Check-in
 5. Set up the local docker registry and images
-6. Deploy JupyterHub
-7. Set up the proxy
-8. Set up ElasticStack logging
+6. Set up the accounting server
+7. Deploy JupyterHub
+8. Set up the proxy
+9. Set up ElasticStack logging
 
 ### VMs
 
@@ -59,6 +60,10 @@ sudo docker build . --network=host
 sudo docker tag a828cb23d1be "192.168.123.12:5000/k8s-custom-hub:0.8.0.1"
 sudo docker push "192.168.123.12:5000/k8s-custom-hub:0.8.0.1"
 ```
+
+### Accounting
+
+See instructions in /acct
 
 ### JupyterHub
 
