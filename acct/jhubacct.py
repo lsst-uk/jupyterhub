@@ -46,7 +46,7 @@ class JobList(Resource):
     def get(self):
         conn = sqlite3.connect(db_file)
         c = conn.cursor()
-        c.execute('SELECT * FROM jobs')
+        c.execute('SELECT * FROM jobs WHERE status IS NOT "X"')
         jobs = c.fetchall()
         fields = c.description
         conn.close()
