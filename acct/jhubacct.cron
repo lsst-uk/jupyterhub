@@ -1,0 +1,19 @@
+#!/bin/sh
+
+cd /opt/jhubacct
+
+# update the username to real name mappings
+python makenames.py > names.csv
+/usr/bin/xdmod-import-csv -q -t names -i names.csv
+
+# generate the log file
+python makelog.py >> log/`date +%Y%m%d`
+
+# do XDMoD ingest
+/usr/bin/xdmod-shredder -q -f pbs -d /opt/jhubacct/log -r jupyterhub
+/usr/bin/xdmod-ingestor -q
+
+# cleanup any processed jobs older than 3 months
+CUTOFF=`date -d '3 months ago' +%s`
+sqlite3 jobs.db "DELETE FROM jobs WHERE status='X' AND end < $CUTOFF"
+
