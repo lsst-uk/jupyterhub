@@ -13,9 +13,11 @@ Deployment consists of the following steps:
 3. Use Rancher to deploy Kubernetes.
 4. Set up the OIDC client in EGI Check-in
 5. Set up the local docker registry and images
-6. Deploy JupyterHub
-7. Set up the proxy
-8. Set up ElasticStack logging
+6. Set up the accounting server
+7. Deploy Postgres DB
+8. Deploy JupyterHub
+9. Set up the proxy
+10. Set up ElasticStack logging
 
 ### VMs
 
@@ -58,6 +60,24 @@ cd docker/hub
 sudo docker build . --network=host
 sudo docker tag a828cb23d1be "192.168.123.12:5000/k8s-custom-hub:0.8.0.1"
 sudo docker push "192.168.123.12:5000/k8s-custom-hub:0.8.0.1"
+```
+
+### Accounting
+
+See instructions in /acct
+
+### Postgres DB
+
+```
+kubectl cordon worker01
+helm install --name postgres --namespace jhub stable/postgresql --set persistence.size=1Gi
+kubectl uncordon worker01
+```
+
+```
+postgres=# CREATE DATABASE jhub;
+postgres=# CREATE USER jhub;
+postgres=# GRANT ALL ON DATABASE jhub TO jhub;
 ```
 
 ### JupyterHub
