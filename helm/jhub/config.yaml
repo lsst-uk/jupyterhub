@@ -1,3 +1,7 @@
+custom:
+  accounting:
+    signing_key_hex: ""
+    url: "http://192.168.140.14:5000"
 debug:
   enabled: true
 proxy:
@@ -25,7 +29,13 @@ auth:
 hub:
   image:
     name: 192.168.140.29:5000/k8s-custom-hub
-    tag: '0.8.0.2'
+    tag: '0.8.2.1'
+  # use "openssl rand -hex 32" to generate a suitable token
+  # required for external db
+  cookieSecret: ""
+  db:
+    type: postgres
+    url: "postgres+psycopg2://jhub:**********@postgres-postgresql.jhub.svc.cluster.local:5432/jhub"
   baseUrl: /
   extraEnv:
     OAUTH2_AUTHORIZE_URL: https://aai.egi.eu/oidc/authorize
@@ -33,6 +43,7 @@ hub:
     OAUTH_CALLBACK_URL: https://jupyter.lsst.ac.uk/hub/oauth_callback
     MY_GROUP: "^urn:mace:egi.eu:group:registry:UKLSST:role=member"
     # use "openssl rand -hex 32" to generate a suitable token
+    # required to allow pre spawn hook access to auth_state
     JUPYTERHUB_CRYPT_KEY: ""
   extraConfig:
     # Custom spawner class
@@ -44,6 +55,8 @@ hub:
       from time import time
       from nacl import encoding
       from nacl import signing
+      from z2jh import get_config
+      from urllib.parse import unquote
       class MySpawner(KubeSpawner):
         @observe('user_options')
         def _update_options(self, change):
@@ -56,6 +69,8 @@ hub:
           if 'cpu' in options:
             self.cpu_guarantee = options['cpu']
             self.cpu_limit = options['cpu']
+          if 'group' in options:
+            self.environment['GROUP'] = options['group']
         def options_from_form(self, formdata):
           images = {
             0: "192.168.140.29:5000/ztf-notebook:0.0.9",
@@ -86,17 +101,23 @@ hub:
             size = int(formdata.get('size', [''])[0])
           except ValueError:
             pass
+          try:
+            group = str(formdata.get('group', [''])[0])
+          except ValueError:
+            pass
           options['mem'] = mems.get(size, mems[1])
           options['cpu'] = cpus.get(size, cpus[1])
+          options['group'] = group
           return options
         def send_acct(self, data, id=None):
-          signing_key_hex = ""
+          signing_key_hex = get_config('custom.accounting.signing_key_hex')
+          acct_url = get_config('custom.accounting.url')
           if id:
             method = "PUT"
-            url = 'http://192.168.140.14:5000/job/%s' % (id)
+            url = '%s/job/%s' % (acct_url, id)
           else:
             method = "POST"
-            url = 'http://192.168.140.14:5000/job'
+            url = '%s/job' % (acct_url)
           self.log.info("Sending accounting data %s %s %s" % (method, url, str(data)))
           signing_key = signing.SigningKey(signing_key_hex, encoder=encoding.HexEncoder)
           sig = encoding.URLSafeBase64Encoder.encode(signing_key.sign(data).signature)
@@ -110,49 +131,59 @@ hub:
         def start(self):
           r = super().start()
           id = self.environment['JOB_ID']
-          #url = 'http://192.168.140.14:5000/job/%s' % (id)
           message = '{ "start":"%d", "ncpus":"%.2f", "mem":"%s", "status":"R" }' % (int(time()), self.cpu_guarantee, self.mem_guarantee)
           data = message.encode('utf-8')
           self.send_acct(data, id)
-          #data = '{ "start": "%d" }' % (int(time()))
-          #data = data.encode('ascii')
-          #req = request.Request(url=url, data=data, method='PUT')
-          #req.add_header("Content-Type", "application/json")
-          # TODO: catch errors and log
-          # TODO: check response
-          #request.urlopen(req)
           return r
+        @gen.coroutine
+        def options_form(self, spawner):
+          groups = []
+          auth_state = yield self.user.get_auth_state()
+          if not auth_state:
+            self.log.warning("auth_state not available - groups will not be set")
+          else:
+            if 'oauth_user' in auth_state:
+              if 'edu_person_entitlements' in auth_state['oauth_user']:
+                entitlements = auth_state['oauth_user']['edu_person_entitlements']
+                for ent in entitlements:
+                  m = match("urn:mace:egi.eu:group:registry:(.*):role=member", ent)
+                  if m:
+                    groups.append(unquote(m.group(1)))
+
+          form = """
+          <label for='image'>Image</label>&nbsp;
+          <select name='image'>
+            <option value='0' selected='selected'>ZTF Notebook</option>
+            <option value='1'>Standard Notebook</option>
+            <option value='2'>Data Science Notebook</option>
+          </select>&nbsp;&nbsp;&nbsp;
+          <label for='size'>Size</label>&nbsp;
+          <select name='size'>
+            <option value='0'>Tiny (256M / 0.25 CPU)</option>
+            <option value='1' selected='selected'>Small (1G / 1 CPU)</option>
+            <option value='2'>Large (8G / 4 CPU)</option>
+            <option value='3'>X-Large (24G / 12 CPU)</option>
+          </select>&nbsp;&nbsp;&nbsp;
+          <label for='group'>Group</label>&nbsp;
+          <select name='group'>"""
+          for g in groups:
+            form += "<option value='%s'>%s</option>" % (g,g)
+          form += "</select>"
+          return form
       c.JupyterHub.spawner_class = MySpawner
-      c.Spawner.options_form = """<label for='image'>Image</label>&nbsp;&nbsp;
-        <select name='image'>
-          <option value='0' selected='selected'>ZTF Notebook</option>
-          <option value='1'>Standard Notebook</option>
-          <option value='2'>Data Science Notebook</option>
-        </select>&nbsp;&nbsp;&nbsp;
-        <label for='size'>Size</label>&nbsp;&nbsp;
-        <select name='size'>
-          <option value='0'>Tiny (256M / 0.25 CPU)</option>
-          <option value='1' selected='selected'>Small (1G / 1 CPU)</option>
-          <option value='2'>Large (8G / 4 CPU)</option>
-          <option value='3'>X-Large (24G / 12 CPU)</option>
-        </select>"""
     # Custom hooks for accounting
     custom_acct: |
       from urllib import request
       from time import time
       import json
       def acct_start(spawner):
-        #url = 'http://192.168.140.14:5000/job'
         username = spawner.user.name
-        data = '{ "user": "%s", "ctime":"%d" }' % (username, int(time()))
+        group = spawner.environment['GROUP']
+        data = '{ "user": "%s", "ctime":"%d", "group":"%s" }' % (username, int(time()), group)
         data = data.encode('utf-8')
-        #req = request.Request(url=url, data=data, method='POST')
-        #req.add_header("Content-Type", "application/json")
         resp = spawner.send_acct(data)
         # TODO: catch errors and log
         # TODO: check response code
-        #with request.urlopen(req) as f:
-        #  resp = json.loads(f.read(256).decode('utf-8'))
         if resp:
           resp = json.loads(resp)
           id = resp.get('id')
@@ -160,11 +191,8 @@ hub:
       c.Spawner.pre_spawn_hook = acct_start
       def acct_stop(spawner):
         id = spawner.environment['JOB_ID']
-        #url = 'http://192.168.140.14:5000/job/%s' % (id)
         data = '{ "end":"%d", "status":"E" }' % (int(time()))
         data = data.encode('utf-8')
-        #req = request.Request(url=url, data=data, method='PUT')
-        #req.add_header("Content-Type", "application/json")
         resp = spawner.send_acct(data, id)
         # TODO: catch errors and log
         # TODO: check response
@@ -182,11 +210,14 @@ hub:
       from os import environ
       from nacl import encoding
       from nacl import signing
+      from z2jh import get_config
+      import json
       class MyOAuthenticator(GenericOAuthenticator):
         def send_user_info(self, data, uid):
-          signing_key_hex = ""
+          signing_key_hex = get_config('custom.accounting.signing_key_hex')
+          acct_url = get_config('custom.accounting.url')
           method = "PUT"
-          url = 'http://192.168.140.14:5000/user/%s' % (uid)
+          url = '%s/user/%s' % (acct_url, uid)
           self.log.info("Sending user data to accounting %s %s %s" % (method, url, str(data)))
           signing_key = signing.SigningKey(signing_key_hex, encoder=encoding.HexEncoder)
           sig = encoding.URLSafeBase64Encoder.encode(signing_key.sign(data).signature)
@@ -234,13 +265,14 @@ hub:
           return userdict
         @gen.coroutine
         def pre_spawn_start(self, user, spawner):
-          _MY_GROUP = environ.get('MY_GROUP', '')
           auth_state = yield user.get_auth_state()
           if not auth_state:
             self.log.warning("auth_state not available - custom environment variables will not be set")
             return
           fullname = ''
           email = ''
+          affiliations = ''
+          groups = []
           if 'oauth_user' in auth_state:
             if 'name' in auth_state['oauth_user']:
               fullname += auth_state['oauth_user']['name']
@@ -252,9 +284,20 @@ hub:
                 name.append(auth_state['oauth_user']['family_name'])
               fullname += ' '.join(name)
             email = auth_state['oauth_user'].get('email', '')
+            if 'edu_person_scoped_affiliations' in auth_state['oauth_user']:
+              affiliations = auth_state['oauth_user']['edu_person_scoped_affiliations']
+            if 'edu_person_entitlements' in auth_state['oauth_user']:
+              entitlements = auth_state['oauth_user']['edu_person_entitlements']
+              for ent in entitlements:
+                m = match("urn:mace:egi.eu:group:registry:(.*):role=member", ent)
+                if m:
+                  groups.append(m.group(1))
+          
           spawner.environment['GIT_AUTHOR_NAME'] = fullname
           spawner.environment['GIT_COMMITTER_NAME'] = fullname
           spawner.environment['EMAIL'] = email
+          spawner.environment['AFFILIATIONS'] = json.dumps(affiliations)
+          spawner.environment['GROUPS'] = ';'.join(groups)
       c.JupyterHub.authenticator_class = MyOAuthenticator
       c.Authenticator.enable_auth_state = True
     # Specify a custom template path (works with custom hub image)
