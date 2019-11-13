@@ -76,6 +76,7 @@ hub:
             0: "192.168.140.29:5000/ztf-notebook:0.0.9",
             1: "jupyter/base-notebook",
             2: "jupyter/datascience-notebook",
+            3: "192.168.140.29:5000/stelios-notebook:0.0.1",
           }
           mems = {
             0: "256M",
@@ -156,6 +157,7 @@ hub:
             <option value='0' selected='selected'>ZTF Notebook</option>
             <option value='1'>Standard Notebook</option>
             <option value='2'>Data Science Notebook</option>
+            <option value='3'>Stelios&#39; Notebook</option>
           </select>&nbsp;&nbsp;&nbsp;
           <label for='size'>Size</label>&nbsp;
           <select name='size'>
