@@ -102,6 +102,8 @@ Configure nginx. Example configuration is in nginx/sites/default
 
 Copy any static content from nginx/static to /var/www/html/static
 
+Add a cronjob to do `service nginx reload` daily in order to pick up any changed certificates.
+
 ### Set up ElasticStack
 
 Generic installation instructions are here: https://www.elastic.co/guide/en/elastic-stack/current/installing-elastic-stack.html
