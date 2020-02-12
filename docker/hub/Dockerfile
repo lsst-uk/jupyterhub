@@ -9,6 +9,8 @@ RUN apt-get update \
 RUN mkdir /usr/local/share/jupyterhub/custom_templates 
 COPY login.html /usr/local/share/jupyterhub/custom_templates
 
+COPY spawner.py /usr/local/lib/python3.6/dist-packages/kubespawner/spawner.py
+
 USER $NB_UID
 
 
